@@ -75,7 +75,7 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             --title="${{ steps.version.outputs.tag }}" \
-            --draft \
+            --notes "Release ${{ steps.version.outputs.tag }}" \
             ${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip \
             main.js \
             manifest.json \
