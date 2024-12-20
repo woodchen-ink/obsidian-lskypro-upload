@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  PLUGIN_NAME: lskypro-upload  # 设置插件名称
+  PLUGIN_NAME: lskypro-upload
 
 jobs:
   build:
@@ -17,6 +17,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取完整历史记录
       
       - name: Use Node.js
         uses: actions/setup-node@v3
@@ -42,7 +44,7 @@ jobs:
       - name: Build plugin
         run: npm run build
 
-      - name: Package plugin
+      - name: Create release package
         run: |
           mkdir ${{ env.PLUGIN_NAME }}
           cp main.js manifest.json ${{ env.PLUGIN_NAME }}
@@ -51,24 +53,32 @@ jobs:
           fi
           zip -r ${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip ${{ env.PLUGIN_NAME }}
 
+      - name: Create source packages
+        run: |
+          # 创建临时目录
+          mkdir temp_source
+          # 复制所有文件到临时目录，排除不需要的文件
+          rsync -av --exclude='node_modules' --exclude='${{ env.PLUGIN_NAME }}' --exclude='*.zip' . temp_source/
+          
+          # 从临时目录创建压缩包
+          cd temp_source
+          zip -r ../source-code.zip .
+          tar czf ../source-code.tar.gz .
+          cd ..
+          
+          # 清理临时目录
+          rm -rf temp_source
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 创建发布
           gh release create "${{ steps.version.outputs.tag }}" \
             --title="${{ steps.version.outputs.tag }}" \
             --draft \
             ${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip \
             main.js \
             manifest.json \
-            $([ -f "styles.css" ] && echo "styles.css")
-
-      - name: Upload source code
-        run: |
-          # 创建源代码压缩包
-          zip -r source-code.zip . -x "node_modules/*" "${{ env.PLUGIN_NAME }}/*" "${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip"
-          tar czf source-code.tar.gz --exclude="node_modules" --exclude="${{ env.PLUGIN_NAME }}" --exclude="${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip" .
-          
-          # 上传源代码到发布
-          gh release upload "${{ steps.version.outputs.tag }}" source-code.zip source-code.tar.gz
+            $([ -f "styles.css" ] && echo "styles.css") \
+            source-code.zip \
+            source-code.tar.gz
