@@ -5,6 +5,9 @@ on:
     tags:
       - "*"
 
+env:
+  PLUGIN_NAME: lskypro-upload  # 设置插件名称
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,20 +39,33 @@ jobs:
       - name: Build plugin
         run: npm run build
 
+      - name: Package plugin
+        run: |
+          mkdir ${{ env.PLUGIN_NAME }}
+          cp main.js manifest.json ${{ env.PLUGIN_NAME }}
+          if [ -f "styles.css" ]; then
+            cp styles.css ${{ env.PLUGIN_NAME }}
+          fi
+          zip -r ${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip ${{ env.PLUGIN_NAME }}
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
-          
-          # 创建发布文件列表
-          files=("main.js" "manifest.json")
-          if [ -f "styles.css" ]; then
-            files+=("styles.css")
-          fi
-          
           # 创建发布
-          gh release create "$tag" \
-            --title="$tag" \
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title="${{ steps.version.outputs.tag }}" \
             --draft \
-            "${files[@]}"
+            ${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip \
+            main.js \
+            manifest.json \
+            $([ -f "styles.css" ] && echo "styles.css")
+
+      - name: Upload source code
+        run: |
+          # 创建源代码压缩包
+          zip -r source-code.zip . -x "node_modules/*" "${{ env.PLUGIN_NAME }}/*" "${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip"
+          tar czf source-code.tar.gz --exclude="node_modules" --exclude="${{ env.PLUGIN_NAME }}" --exclude="${{ env.PLUGIN_NAME }}-${{ steps.version.outputs.version }}.zip" .
+          
+          # 上传源代码到发布
+          gh release upload "${{ steps.version.outputs.tag }}" source-code.zip source-code.tar.gz
