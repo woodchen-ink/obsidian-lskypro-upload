@@ -5,6 +5,9 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: write
+
 env:
   PLUGIN_NAME: lskypro-upload  # 设置插件名称
 
