@@ -25,13 +25,24 @@ export function isAssetTypeAnImage(path: string): Boolean {
 }
 
 export async function streamToString(stream: Readable) {
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
 
   for await (const chunk of stream) {
-    chunks.push(Buffer.from(chunk));
+    chunks.push(new Uint8Array(chunk));
   }
 
-  return Buffer.concat(chunks).toString("utf-8");
+  // 计算总长度
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  
+  // 创建一个新的 Uint8Array 并复制所有数据
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(result);
 }
 
 export function getUrlAsset(url: string) {

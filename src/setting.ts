@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import imageAutoUploadPlugin from "./main";
 import { t } from "./lang/helpers";
 
@@ -7,13 +7,14 @@ export interface PluginSettings {
   uploadServer: string;
   token: string;
   strategy_id: string;
-  imageSizeSuffix: string;
   uploader: string;
   workOnNetWork: boolean;
   newWorkBlackDomains: string;
   fixPath: boolean;
   applyImage: boolean;
   deleteSource: boolean;
+  isPublic: boolean;
+  albumId: string;
   [propName: string]: any;
 }
 
@@ -22,13 +23,14 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   uploader: "LskyPro",
   token: "",
   strategy_id:"",
-  uploadServer: "https://lsky.xxxx",
-  imageSizeSuffix: "",
+  uploadServer: "https://img.czl.net",
   workOnNetWork: false,
   fixPath: false,
   applyImage: true,
   newWorkBlackDomains: "",
   deleteSource: false,
+  isPublic: false,
+  albumId: "",
 };
 
 export class SettingTab extends PluginSettingTab {
@@ -77,7 +79,7 @@ export class SettingTab extends PluginSettingTab {
         .setDesc("LskyPro 域名（不需要填写完整的API路径）")
         .addText(text =>
           text
-            .setPlaceholder("请输入LskyPro 域名")
+            .setPlaceholder("请输入LskyPro 域名(例如:https://img.czl.net)")
             .setValue(this.plugin.settings.uploadServer)
             .onChange(async key => {
               this.plugin.settings.uploadServer = key;
@@ -86,7 +88,7 @@ export class SettingTab extends PluginSettingTab {
         );
         new Setting(containerEl)
         .setName("LskyPro Token")
-        .setDesc("LskyPro Token")
+        .setDesc("LskyPro Token(不需要包含Bearer)")
         .addText(text =>
           text
             .setPlaceholder("请输入LskyPro Token")
@@ -101,28 +103,39 @@ export class SettingTab extends PluginSettingTab {
         .setDesc("LskyPro 存储策略ID（非必填）")
         .addText(text =>
           text
-            .setPlaceholder("请输入LskyPro 存储策略ID（非必填）")
+            .setPlaceholder("存储策略ID")
             .setValue(this.plugin.settings.strategy_id)
             .onChange(async key => {
               this.plugin.settings.strategy_id = key;
               await this.plugin.saveSettings();
             })
         );
+
+      new Setting(containerEl)
+        .setName("图片是否公开")
+        .setDesc("设置上传图片的权限（开启=公开，关闭=私有）")
+        .addToggle(toggle =>
+          toggle
+            .setValue(this.plugin.settings.isPublic)
+            .onChange(async value => {
+              this.plugin.settings.isPublic = value;
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName("相册ID")
+        .setDesc("指定上传到的相册ID（可选）")
+        .addText(text =>
+          text
+            .setPlaceholder("相册ID")
+            .setValue(this.plugin.settings.albumId)
+            .onChange(async value => {
+              this.plugin.settings.albumId = value;
+              await this.plugin.saveSettings();
+            })
+        );
     }
-
-
-    new Setting(containerEl)
-      .setName(t("Image size suffix"))
-      .setDesc(t("Image size suffix Description"))
-      .addText(text =>
-        text
-          .setPlaceholder(t("Please input image size suffix"))
-          .setValue(this.plugin.settings.imageSizeSuffix)
-          .onChange(async key => {
-            this.plugin.settings.imageSizeSuffix = key;
-            await this.plugin.saveSettings();
-          })
-      );
 
     new Setting(containerEl)
       .setName(t("Work on network"))
@@ -176,6 +189,18 @@ export class SettingTab extends PluginSettingTab {
             this.plugin.settings.deleteSource = value;
             this.display();
             await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn
+          .setButtonText('保存并重载配置')
+          .setCta()
+          .onClick(async () => {
+            await this.plugin.saveSettings();
+            await this.plugin.loadSettings();
+            new Notice('配置已更新');
           })
       );
   }

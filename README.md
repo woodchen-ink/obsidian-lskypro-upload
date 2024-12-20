@@ -1,52 +1,36 @@
-# Obsidian LskyPro Auto Upload Plugin
+# Obsidian LskyPro Upload Plugin
 
-This is a tool that supports uploading images directly to the image bed [Lsky](https://github.com/lsky-org/lsky-pro), based on [renmu123/obsidian-image-auto-upload-plugin](https://github.com/renmu123/obsidian-image-auto-upload-plugin.git) modification.
-**Remember to restart Obsidian after updating the plugin**
+A plugin for uploading images to LskyPro image hosting service.
 
-# Start
+## Features
 
-1. Install the LskyPro image bed and configure it. For configuration, refer to [official website](https://www.lsky.pro/)
-2. Open the interface of LskyPro
-3. Use the authorization interface to obtain Token and record it
-4. Open the plug-in configuration item and set the LskyPro domain name (for example: https://lsky.xxx.com)
-5. Set LskyPro Token
-6. The storage policy ID is an optional configuration, and it is configured according to LskyPro's policy and its own requirements. If there is only one policy, it does not need to be set
+- Auto upload images from clipboard
+- Support uploading to specified album
+- Support public/private image permissions
+- Support custom domain
+- Support token authentication
 
-# Features
+## Installation
 
-## Upload when paste image
+1. Open Obsidian Settings
+2. Go to Community Plugins and disable Safe Mode
+3. Click Browse and search for "LskyPro Upload"
+4. Install and enable the plugin
 
-It supports uploading directly when pasting pictures from the clipboard, and currently supports copying images in the system and uploading them directly.
-Support to control the upload of a single file by setting `frontmatter`, the default value is `true`, please set the value to `false` to control the shutdown
+## Configuration
 
-Support ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".svg", ".tiff" (because it directly calls the LskyPro interface, theoretically the files supported by the image bed It will be all right)
+1. Get your LskyPro token from your LskyPro instance
+2. Configure the plugin settings:
+   - Set your LskyPro domain
+   - Add your token
+   - Configure other optional settings
 
-```yaml
----
-image-auto-upload: true
----
-```
+## Usage
 
-## Upload all local images file by command
+1. Copy an image
+2. Paste into your note
+3. The image will be automatically uploaded to LskyPro
 
-press ctrl+P and input upload all images，enter, then will auto upload all local images
+## License
 
-The path resolution priority will be searched according to the priority in turn:
-
-1. Absolute path, refers to the absolute path based on the library
-2. Relative paths, starting with ./ or ../
-3. shortest possible form
-
-## download all internet to local
-
-press ctrl+P and input upload all images，enter, then will auto upload all local images
-
-## Support drag-and-drop
-
-Allow multiple file drag and drop
-
-
-# TODO
-
-# Thanks
-[renmu123/obsidian-image-auto-upload-plugin](https://github.com/renmu123/obsidian-image-auto-upload-plugin.git)
+MIT

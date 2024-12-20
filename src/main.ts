@@ -8,6 +8,7 @@ import {
   addIcon,
   requestUrl,
   MarkdownFileInfo,
+  TFile,
 } from "obsidian";
 
 import { join, parse, basename, dirname } from "path";
@@ -40,10 +41,22 @@ export default class imageAutoUploadPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    console.log('Loaded settings:', this.settings);
+    this.initializeUploader();
+  }
+
+  private initializeUploader() {
+    this.lskyUploader = new LskyProUploader(this.settings, this.app);
+    if (this.settings.uploader === "LskyPro") {
+      this.uploader = this.lskyUploader;
+    } else {
+      new Notice("unknown uploader");
+    }
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
+    this.initializeUploader();
   }
 
   onunload() { }
@@ -51,12 +64,6 @@ export default class imageAutoUploadPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     this.helper = new Helper(this.app);
-    this.lskyUploader = new LskyProUploader(this.settings,this.app);
-    if (this.settings.uploader === "LskyPro") {
-      this.uploader = this.lskyUploader;
-    } else {
-      new Notice("unknown uploader");
-    }
 
     addIcon(
       "upload",
@@ -108,22 +115,7 @@ export default class imageAutoUploadPlugin extends Plugin {
           if (this.app.workspace.getLeavesOfType("markdown").length === 0) {
             return;
           }
-          const selection = editor.getSelection();
-          if (selection) {
-            const markdownRegex = /!\[.*\]\((.*)\)/g;
-            const markdownMatch = markdownRegex.exec(selection);
-            if (markdownMatch && markdownMatch.length > 1) {
-              const markdownUrl = markdownMatch[1];
-              if (
-                this.settings.uploadedImages.find(
-                  (item: { imgUrl: string }) => item.imgUrl === markdownUrl
-                )
-              ) {
-                //TODO 选中连接，右键可以上传
-                //this.addMenu(menu, markdownUrl, editor);
-              }
-            }
-          }
+          // 保留一个基本的空方法，以备将来可能需要添加其他编辑器菜单功能
         }
       )
     );
@@ -179,7 +171,7 @@ export default class imageAutoUploadPlugin extends Plugin {
     imageArray.map(image => {
       value = value.replace(
         image.source,
-        `![${image.name}${this.settings.imageSizeSuffix || ""}](${encodeURI(
+        `![${image.name}](${encodeURI(
           image.path
         )})`
       );
@@ -244,7 +236,7 @@ export default class imageAutoUploadPlugin extends Plugin {
       if (!ext) {
         path = folderPath +'/'+ `${name}.${type.ext}`;
       }
-      this.app.vault.createBinary(path,buffer,{
+      this.app.vault.createBinary(path, buffer.buffer, {
         ctime: Date.now(),
         mtime: Date.now()
       })
@@ -392,8 +384,7 @@ export default class imageAutoUploadPlugin extends Plugin {
           const uploadImage = uploadUrlList.shift();
           content = content.replaceAll(
             item.source,
-            `![${item.name}${this.settings.imageSizeSuffix || ""
-            }](${uploadImage})`
+            `![${item.name}](${uploadImage})`
           );
         });
         this.helper.setValue(content);
@@ -453,8 +444,7 @@ export default class imageAutoUploadPlugin extends Plugin {
                       const uploadImage = uploadUrlList.shift();
                       value = value.replaceAll(
                         item.source,
-                        `![${item.name}${this.settings.imageSizeSuffix || ""
-                        }](${uploadImage})`
+                        `![${item.name}](${uploadImage})`
                       );
                     });
                     this.helper.setValue(value);

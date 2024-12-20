@@ -1,32 +1,70 @@
 import { PluginSettings } from "./setting";
-import {  App, TFile } from "obsidian";
+import { App, TFile, Notice } from "obsidian";
+
+// 添加返回值类型接口
+interface UploadResponse {
+  code: number;
+  msg: string;
+  data: string;
+  fullResult?: Array<any>;
+}
+
 //兰空上传器
 export class LskyProUploader {
   settings: PluginSettings;
   lskyUrl: string;
-  lskyToken: string;
   app: App;
 
-  constructor(settings: PluginSettings,app: App) {
+  constructor(settings: PluginSettings, app: App) {
     this.settings = settings;
     this.lskyUrl = this.settings.uploadServer.endsWith("/")
       ? this.settings.uploadServer + "api/v1/upload"
       : this.settings.uploadServer + "/api/v1/upload";
-    this.lskyToken = "Bearer " + this.settings.token;
     this.app = app;
   }
 
   //上传请求配置
   getRequestOptions(file: File) {
     let headers = new Headers();
-    headers.append("Authorization", this.lskyToken);
+    // 严格检查 token
+    if (!this.settings.token || this.settings.token.trim() === '') {
+      throw new Error('请先配置 Token');
+    }
+    
+    // 打印 token 值进行调试
+    console.log('Token value:', this.settings.token);
+    console.log('Token after trim:', this.settings.token.trim());
+    
+    // 设置认证头
+    const authHeader = `Bearer ${this.settings.token.trim()}`;
+    headers.append("Authorization", authHeader);
+    
+    // 打印实际的请求头
+    console.log('Authorization header:', authHeader);
+    
     headers.append("Accept", "application/json");
 
     let formdata = new FormData();
     formdata.append("file", file);
+    
+    // 添加策略ID（如果有）
     if (this.settings.strategy_id) {
       formdata.append("strategy_id", this.settings.strategy_id);
     }
+    
+    // 添加权限设置
+    formdata.append("permission", this.settings.isPublic ? "1" : "0");
+    
+    // 添加相册ID（如果有）
+    if (this.settings.albumId) {
+      formdata.append("album_id", this.settings.albumId);
+    }
+
+    // 打印完整的请求头
+    console.log('All headers:');
+    headers.forEach((value, key) => {
+      console.log(`${key}: ${value}`);
+    });
 
     return {
       method: "POST",
@@ -34,37 +72,73 @@ export class LskyProUploader {
       body: formdata,
     };
   }
+
+  // 修改重试逻辑，增加对 401 的处理
+  async retryFetch(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(url, options);
+        
+        // 如果是认证错误，直接抛出错误不重试
+        if (response.status === 401) {
+          throw new Error('Token 无效或已过期，请检查配置');
+        }
+        
+        // 对其他错误进行重试
+        if (response.ok || response.status !== 403) {
+          return response;
+        }
+        
+        // 如果是 403 错误，等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      } catch (error) {
+        if (i === maxRetries - 1 || error.message.includes('Token')) {
+          throw error;
+        }
+        // 等待后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      }
+    }
+    throw new Error(`Failed after ${maxRetries} retries`);
+  }
+
   //上传文件，返回promise对象
-  promiseRequest(file: any) {
-    let requestOptions = this.getRequestOptions(file);
-    return new Promise(resolve => {
-      fetch(this.lskyUrl, requestOptions).then(response => {
-        response.json().then(value => {
-          if (!value.status) {
-            return resolve({
-              code: -1,
-              msg: value.message,
-              data: value.data,
-            });
-          } else {
-            return resolve({
-              code: 0,
-              msg: "success",
-              data: value.data?.links?.url,
-              fullResult: {} || [],
-            });
-          }
-        });
-      });
-    }).catch(error => {
-      console.log("error", error);
+  async promiseRequest(file: any): Promise<UploadResponse> {
+    try {
+      let requestOptions = this.getRequestOptions(file);
+      const response = await this.retryFetch(this.lskyUrl, requestOptions);
+      const value = await response.json();
+      
+      if (!value.status) {
+        const errorMsg = value.message || '上传失败';
+        new Notice(`上传失败: ${errorMsg}`);
+        return {
+          code: -1,
+          msg: errorMsg,
+          data: value.data,
+          fullResult: []
+        };
+      }
+      
+      return {
+        code: 0,
+        msg: "success",
+        data: value.data?.links?.url,
+        fullResult: []
+      };
+      
+    } catch (error) {
+      console.error("Upload error:", error);
+      new Notice(error.message || '上传出错');
       return {
         code: -1,
-        msg: error,
+        msg: error.message || '上传失败',
         data: "",
+        fullResult: []
       };
-    });
+    }
   }
+
   //通过路径创建文件
   async createFileObjectFromPath(path: string) {
     return new Promise(resolve => {
