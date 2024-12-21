@@ -298,9 +298,12 @@ export default class imageAutoUploadPlugin extends Plugin {
   uploadAllFile() {
     let content = this.helper.getValue();
 
-    const basePath = (
-      this.app.vault.adapter as FileSystemAdapter
-    ).getBasePath();
+    const adapter = this.app.vault.adapter;
+    if (!(adapter instanceof FileSystemAdapter)) {
+      new Notice('Current adapter is not FileSystemAdapter');
+      return;
+    }
+    const basePath = adapter.getBasePath();
     const activeFile = this.app.workspace.getActiveFile();
     const fileMap = arrayToObject(this.app.vault.getFiles(), "name");
     const filePathMap = arrayToObject(this.app.vault.getFiles(), "path");
@@ -390,11 +393,11 @@ export default class imageAutoUploadPlugin extends Plugin {
         this.helper.setValue(content);
 
         if (this.settings.deleteSource) {
-          imageList.map(image => {
+          imageList.map(async image => {
             if (!image.path.startsWith("http")) {
               let fileDel = this.app.vault.getAbstractFileByPath(image.obspath);
               if (fileDel) {
-                this.app.vault.delete(fileDel);
+                await this.app.fileManager.trashFile(fileDel);
               }
             }
           });
