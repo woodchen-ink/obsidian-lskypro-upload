@@ -105,6 +105,30 @@ export default class imageAutoUploadPlugin extends Plugin {
 
     this.setupPasteHandler();
     this.registerSelection();
+
+    // 添加文件菜单项
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file) => {
+        // 检查是否为 TFile 类型且是 markdown 文件
+        if (file instanceof TFile && file.extension === "md") {
+          menu.addItem((item) => {
+            item
+              .setTitle("上传所有图片到图床")
+              .setIcon("upload")
+              .onClick(async () => {
+                // 获取当前文件的内容
+                const content = await this.app.vault.read(file);
+                
+                // 临时设置 helper 的内容
+                this.helper.setValue(content);
+                
+                // 调用现有的上传功能
+                this.uploadAllFile();
+              });
+          });
+        }
+      })
+    );
   }
 
   registerSelection() {
@@ -295,7 +319,7 @@ export default class imageAutoUploadPlugin extends Plugin {
     return fileMap[fileName];
   }
   // uploda all file
-  uploadAllFile() {
+  async uploadAllFile() {
     let content = this.helper.getValue();
 
     const adapter = this.app.vault.adapter;
@@ -310,6 +334,7 @@ export default class imageAutoUploadPlugin extends Plugin {
     let imageList: Image[] = [];
     const fileArray = this.filterFile(this.helper.getAllFiles());
 
+    // 收集所有需要上传的图片
     for (const match of fileArray) {
       const imageName = match.name;
       const encodedUri = match.path;
@@ -369,43 +394,51 @@ export default class imageAutoUploadPlugin extends Plugin {
     if (imageList.length === 0) {
       new Notice("没有解析到图像文件");
       return;
-    } else {
-      new Notice(`共找到${imageList.length}个图像文件，开始上传`);
     }
 
-    this.uploader.uploadFilesByPath(imageList.map(item => item.obspath)).then(res => {
-      if (res.success) {
-        let uploadUrlList = res.result;
-        const uploadUrlFullResultList = res.fullResult || [];
+    new Notice(`共找到${imageList.length}个图像文件，开始上传`);
 
-        this.settings.uploadedImages = [
-          ...(this.settings.uploadedImages || []),
-          ...uploadUrlFullResultList,
-        ];
-        this.saveSettings();
-        imageList.map(item => {
-          const uploadImage = uploadUrlList.shift();
+    // 一个一个上传图片
+    for (const image of imageList) {
+      try {
+        const res = await this.uploader.uploadFilesByPath([image.obspath]);
+        if (res.success) {
+          const uploadUrl = res.result[0];
+          // 替换内容
           content = content.replaceAll(
-            item.source,
-            `![${item.name}](${uploadImage})`
+            image.source,
+            `![${image.name}](${uploadUrl})`
           );
-        });
-        this.helper.setValue(content);
+          this.helper.setValue(content);
 
-        if (this.settings.deleteSource) {
-          imageList.map(async image => {
-            if (!image.path.startsWith("http")) {
-              let fileDel = this.app.vault.getAbstractFileByPath(image.obspath);
-              if (fileDel) {
-                await this.app.fileManager.trashFile(fileDel);
-              }
+          // 如果设置了删除源文件
+          if (this.settings.deleteSource) {
+            const fileDel = this.app.vault.getAbstractFileByPath(image.obspath);
+            if (fileDel) {
+              await this.app.fileManager.trashFile(fileDel);
             }
-          });
+          }
+
+          // 保存上传记录
+          if (res.fullResult) {
+            this.settings.uploadedImages = [
+              ...(this.settings.uploadedImages || []),
+              ...res.fullResult,
+            ];
+            await this.saveSettings();
+          }
+
+          new Notice(`图片 ${image.name} 上传成功`);
+        } else {
+          new Notice(`图片 ${image.name} 上传失败`);
         }
-      } else {
-        new Notice("Upload error");
+      } catch (error) {
+        console.error(`Upload error for ${image.name}:`, error);
+        new Notice(`图片 ${image.name} 上传出错`);
       }
-    });
+    }
+
+    new Notice("所有图片处理完成");
   }
 
   setupPasteHandler() {
