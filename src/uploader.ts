@@ -31,16 +31,13 @@ export class LskyProUploader {
       throw new Error('请先配置 Token');
     }
     
-    // 打印 token 值进行调试
-    console.log('Token value:', this.settings.token);
-    console.log('Token after trim:', this.settings.token.trim());
+    
     
     // 设置认证头
     const authHeader = `Bearer ${this.settings.token.trim()}`;
     headers.append("Authorization", authHeader);
     
-    // 打印实际的请求头
-    console.log('Authorization header:', authHeader);
+   
     
     headers.append("Accept", "application/json");
 
@@ -60,11 +57,6 @@ export class LskyProUploader {
       formdata.append("album_id", this.settings.albumId);
     }
 
-    // 打印完整的请求头
-    console.log('All headers:');
-    headers.forEach((value, key) => {
-      console.log(`${key}: ${value}`);
-    });
 
     return {
       method: "POST",

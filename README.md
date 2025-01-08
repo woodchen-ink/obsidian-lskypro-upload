@@ -1,4 +1,4 @@
-# Obsidian LskyPro Upload Plugin
+# LskyPro Upload Plugin
 
 A plugin for uploading images to LskyPro image hosting service.
 

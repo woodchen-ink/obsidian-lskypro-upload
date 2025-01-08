@@ -41,7 +41,6 @@ export default class imageAutoUploadPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    console.log('Loaded settings:', this.settings);
     this.initializeUploader();
   }
 
@@ -260,10 +259,6 @@ export default class imageAutoUploadPlugin extends Plugin {
       if (!ext) {
         path = folderPath +'/'+ `${name}.${type.ext}`;
       }
-      this.app.vault.createBinary(path, buffer.buffer, {
-        ctime: Date.now(),
-        mtime: Date.now()
-      })
       return {
         ok: true,
         msg: "ok",

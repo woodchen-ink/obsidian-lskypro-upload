@@ -44,7 +44,6 @@ export class SettingTab extends PluginSettingTab {
   display(): void {
     let { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: t("Plugin Settings") });
     new Setting(containerEl)
       .setName(t("Auto pasted upload"))
       .setDesc(
@@ -189,18 +188,6 @@ export class SettingTab extends PluginSettingTab {
             this.plugin.settings.deleteSource = value;
             this.display();
             await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .addButton((btn) =>
-        btn
-          .setButtonText('保存并重载配置')
-          .setCta()
-          .onClick(async () => {
-            await this.plugin.saveSettings();
-            await this.plugin.loadSettings();
-            new Notice('配置已更新');
           })
       );
   }
